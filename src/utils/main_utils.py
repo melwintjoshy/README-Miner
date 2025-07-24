@@ -11,9 +11,9 @@ from nbconvert import MarkdownExporter
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
-from pathlib import Path
-import os
-import stat
+from dotenv import load_dotenv
+load_dotenv()
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 def clone_repo(repo_url: str, clone_to: str) -> str:
     git.Repo.clone_from(repo_url, clone_to)
@@ -21,7 +21,12 @@ def clone_repo(repo_url: str, clone_to: str) -> str:
 
 def get_all_files(repo_path: str) -> List[str]:
     files = []
-    for root, _, filenames in os.walk(repo_path):
+    exclude_dirs = {'venv', '.git', '__pycache__', 'node_modules', '.idea'}
+
+    for root, dirs, filenames in os.walk(repo_path):
+        
+        dirs[:] = [d for d in dirs if d not in exclude_dirs]
+
         for filename in filenames:
             filepath = os.path.join(root, filename)
             if filepath.endswith(('.py', '.md', '.txt', '.ipynb')):  # You can customize this
@@ -30,7 +35,7 @@ def get_all_files(repo_path: str) -> List[str]:
 
 #ok
 def summarize_with_llm(file_content: str) -> str:
-    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", google_api_key = "AIzaSyBrSDa5b2XtiKTnxQfV5SujuRL-Zoiowho")
+    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", google_api_key =GOOGLE_API_KEY)
 
     template = (
         "You're a coding assistant. Summarize the functionality of the following code file:\n\n"
@@ -74,6 +79,7 @@ def convert_file_to_markdown(file_path: str) -> str:
 def generate_summaries(files: List[str], repo_path: str) -> str:
     summary_md = "# 📄 Project File Summaries\n\n"
     for file_path in files:
+        print(f"Processing: {file_path}")  
         try:
             content_md = convert_file_to_markdown(file_path)
             summary = summarize_with_llm(content_md)
@@ -83,13 +89,23 @@ def generate_summaries(files: List[str], repo_path: str) -> str:
     return summary_md
 
 def generate_readme(project_details: str) -> str:
-    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", google_api_key = "AIzaSyBrSDa5b2XtiKTnxQfV5SujuRL-Zoiowho")
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash-lite",
+        google_api_key=GOOGLE_API_KEY
+    )
 
     template = (
-        "You're a github readme generator expert. Generate the readme file for the project with following project details:\n\n"
-        "Project details: {project_details}\n\n"
-        "It should contain only the following:"
-        "ReadMe: "
+        "You are a professional technical writer and GitHub expert.\n"
+        "Write a high-quality, complete README.md for the following project based on its code summary.\n\n"
+        "The README must include these sections:\n"
+        "1. 📌 Project Title\n"
+        "2. 🧠 Overview (what the project does)\n"
+        "3. ⚙️ Features\n"
+        "4. 🛠️ Installation Steps (with commands)\n"
+        "5. 🚀 How to Run / Usage Instructions\n"
+        "6. 📄 License (optional)\n\n"
+        "Use Markdown formatting with headers, bullet points, and code blocks where needed.\n\n"
+        "Project Summary:\n{project_details}"
     )
 
     prompt = PromptTemplate(
@@ -103,7 +119,8 @@ def generate_readme(project_details: str) -> str:
         "project_details": project_details,
     })
 
-    return f"###README : {file.content}\n"
+    return file.content
+
 
 def save_markdown(content: str, path: str):
     with open(path, 'w', encoding='utf-8') as f:  # ✅ use utf-8
