@@ -11,6 +11,9 @@ from nbconvert import MarkdownExporter
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
+from pathlib import Path
+import os
+import stat
 
 def clone_repo(repo_url: str, clone_to: str) -> str:
     git.Repo.clone_from(repo_url, clone_to)
@@ -127,6 +130,17 @@ def delete_old_files(folder_path: str, max_age_minutes: int = 2):
                     print("Deleted created files.")
                 except Exception as e:
                     print(f"Failed to delete {file_path}: {e}")
+
+def remove_path(path: Path):
+    for sub in path.iterdir():
+        if sub.is_dir():
+            remove_path(sub)
+        else:
+            # Make file writable and delete
+            sub.chmod(stat.S_IWRITE)
+            sub.unlink()
+    path.rmdir()
+
 
 if __name__ == "__main__":
     repo_url = "https://github.com/your/repo.git"
