@@ -35,7 +35,7 @@ def get_all_files(repo_path: str) -> List[str]:
 
 #ok
 def summarize_with_llm(file_content: str) -> str:
-    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", google_api_key = "AIzaSyBrSDa5b2XtiKTnxQfV5SujuRL-Zoiowho")
+    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", google_api_key =GOOGLE_API_KEY)
 
     template = (
         "You're a coding assistant. Summarize the functionality of the following code file:\n\n"
