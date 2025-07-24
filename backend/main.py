@@ -29,16 +29,13 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # one
 @app.post("/get_readme")
 async def get_readme(request: RepoRequest):
     repo_url = f"{request.repo_url}.git"
-    import os
-
-    
 
     clone_to = os.path.join(BASE_DIR, "output", "cloned_repo")
     output_md = os.path.join(BASE_DIR, "output", "project_summary.md")
     output_readme = os.path.join(BASE_DIR, "output", "README.md")
 
 
-    clone_to = Path("output/cloned_repo")
+    clone_to = Path(clone_to)
 
     if clone_to.exists():
         print("Removing old cloned_repo folder...")
