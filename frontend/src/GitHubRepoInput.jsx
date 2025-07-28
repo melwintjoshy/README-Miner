@@ -1,140 +1,83 @@
-import React, { useState, useEffect, useRef } from 'react';
-
-// --- Global Styles (same as before) ---
-const injectGlobalStyles = () => {
-  const styleId = 'github-readme-global-styles';
-  if (document.getElementById(styleId)) return;
-
-  const styleSheet = document.createElement("style");
-  styleSheet.id = styleId;
-  styleSheet.innerText = `
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-    body {
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background-color: #f7faff;
-      overflow-x: hidden;
-    }
-
-    .aurora-bg {
-      position: fixed;
-      inset: 0;
-      width: 100vw;
-      height: 100vh;
-      z-index: -1;
-      overflow: hidden;
-      pointer-events: none;
-    }
-
-    .aurora-layer {
-      position: absolute;
-      width: 140vw;
-      height: 140vh;
-      filter: blur(90px);
-      opacity: 0.4;
-      animation: floatMove 18s linear infinite alternate;
-      background:
-        radial-gradient(circle at 50% 30%, #6ab7ff 0%, transparent 60%),
-        radial-gradient(circle at 20% 80%, #d0eaff 0%, transparent 60%),
-        radial-gradient(circle at 80% 70%, #5a9dff 0%, transparent 60%);
-    }
-
-    .aurora-layer-2 {
-      filter: blur(120px);
-      opacity: 0.35;
-      animation: floatMove2 24s linear infinite alternate;
-      background:
-        radial-gradient(circle at 60% 40%, #b7eaff 0%, transparent 70%),
-        radial-gradient(circle at 40% 60%, #4a7dff 0%, transparent 70%);
-    }
-
-    @keyframes floatMove {
-      from { transform: translate(-5vw, -10vh) scale(1); }
-      to { transform: translate(10vw, 5vh) scale(1.2); }
-    }
-
-    @keyframes floatMove2 {
-      from { transform: translate(10vw, 5vh) scale(1); }
-      to { transform: translate(-10vw, -10vh) scale(1.1); }
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(20px) scale(0.98);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
-    }
-  `;
-  document.head.appendChild(styleSheet);
-};
+import React, { useState, useEffect, useRef, useContext } from 'react';
+import { AuthContext } from './context/AuthContext';
+import { apiCall } from './services/api'; 
 
 function GitHubRepoInput() {
-  useEffect(() => {
-    injectGlobalStyles();
-  }, []);
-
   const [repoUrl, setRepoUrl] = useState('');
-  const [isReady, setIsReady] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [generatedReadme, setGeneratedReadme] = useState('');
-  const readmePreviewRef = useRef(null);
+  const [isReady, setIsReady] = useState(false); // Indicates if README is ready for download/copy
+  const [isLoading, setIsLoading] = useState(false); // Indicates if generation is in progress
+  const [message, setMessage] = useState(''); // Status messages (success, info)
+  const [error, setError] = useState(''); // Error messages
+  const [generatedReadme, setGeneratedReadme] = useState(''); // Stores the generated README content
+  const readmePreviewRef = useRef(null); // Ref for scrolling to README preview
 
-  const backendBaseUrl = 'http://localhost:8000';
+  // Get authentication context (token and isAuthenticated status)
+  const { token, isAuthenticated } = useContext(AuthContext);
 
+  const backendBaseUrl = 'http://localhost:8000'; //  backend URL
+
+  // Handlers
   const handleUrlChange = (event) => {
     setRepoUrl(event.target.value);
+    // Reset states when URL changes
     setIsReady(false);
     setMessage('');
+    setError('');
     setGeneratedReadme('');
   };
 
   const handleSubmit = async (event) => {
-    event.preventDefault();
+    event.preventDefault(); // Prevent default form submission behavior
+
+    // Check if user is authenticated before proceeding
+    if (!isAuthenticated) {
+      setMessage(' Please log in to generate and save READMEs.');
+      return;
+    }
+
+    // Input validation
     if (!repoUrl.trim()) {
       setMessage('❌ Please enter a GitHub repository URL.');
       return;
     }
+
+    // Reset states and show loading indicator
     setIsLoading(true);
     setMessage('');
+    setError('');
     setGeneratedReadme('');
     setIsReady(false);
 
     try {
-      const response = await fetch(`${backendBaseUrl}/get_readme`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repo_url: repoUrl }),
+      // Step 1: Request README generation from backend
+      // Use apiCall and pass the authentication token
+      await apiCall('/get_readme', 'POST', { repo_url: repoUrl }, token);
+      setMessage("README generation initiated successfully! Fetching content...");
+
+      // Step 2: Fetch the generated README content (this requires a separate call as /get_readme returns immediately)
+      // We use a direct fetch here because apiCall is designed for JSON responses,
+      // but /download_readme returns a text/markdown blob.
+      const readmeResponse = await fetch(`${backendBaseUrl}/download_readme`, {
+        headers: {
+          'Authorization': `Bearer ${token}`, //Include the token for authorization
+        },
       });
 
-      if (response.ok) {
-        // Wait a moment for backend to finish processing (if async)
-        // Then fetch the generated README
-        const readmeResponse = await fetch(`${backendBaseUrl}/download_readme`);
-        if (readmeResponse.ok) {
-          const readmeText = await readmeResponse.text();
-          setGeneratedReadme(readmeText);
-          setMessage('✅ README generated successfully!');
-          setIsReady(true);
-        } else {
-          setMessage('❌ Failed to download README from server.');
-          setIsReady(false);
-        }
+      if (readmeResponse.ok) {
+        const readmeText = await readmeResponse.text();
+        setGeneratedReadme(readmeText);
+        setMessage('✅ README generated successfully!');
+        setIsReady(true);
+        //  Scroll to the README preview after generation
+        readmePreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else {
-        const errorData = await response.json();
-        setMessage(`❌ ${errorData.detail || 'Failed to generate README.'}`);
+        const errorData = await readmeResponse.json();
+        setError(`❌ Failed to download README from server: ${errorData.detail || 'Unknown error'}`);
         setIsReady(false);
       }
-    } catch (error) {
-      console.error("API Error:", error);
-      setMessage('❌ An error occurred. Please try again.');
+    } catch (apiError) {
+      console.error("API Error:", apiError);
+      setError(`❌ An error occurred: ${apiError.message}. Please try again.`);
       setIsReady(false);
     } finally {
       setIsLoading(false);
@@ -142,16 +85,32 @@ function GitHubRepoInput() {
   };
 
   const handleDownload = () => {
-    const blob = new Blob([generatedReadme], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'README.md';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setMessage('⬇️ Download started!');
+    if (!generatedReadme) {
+      setMessage('No README to download. Generate one first!');
+      return;
+    }
+    // Check authentication for direct download (though it's user-generated)
+    if (!isAuthenticated) {
+      setMessage('❌ Please log in to download READMEs.');
+      return;
+    }
+
+    try {
+      // Create a Blob from the README content
+      const blob = new Blob([generatedReadme], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob); // Create a URL for the Blob
+      const a = document.createElement('a'); // Create a temporary anchor element
+      a.href = url;
+      a.download = 'README.md'; // Set the download filename
+      document.body.appendChild(a); // Append to body (required for Firefox)
+      a.click(); // Programmatically click the link to trigger download
+      document.body.removeChild(a); // Clean up the temporary link
+      URL.revokeObjectURL(url); // Release the object URL
+      setMessage('⬇️ Download started!');
+    } catch (downloadError) {
+      console.error("Download Error:", downloadError);
+      setError('❌ Failed to initiate download.');
+    }
   };
 
   const handleCopy = () => {
@@ -159,12 +118,14 @@ function GitHubRepoInput() {
       navigator.clipboard.writeText(generatedReadme)
         .then(() => setMessage('📋 Copied to clipboard!'))
         .catch(() => setMessage('❌ Failed to copy.'));
+    } else {
+      setMessage('❌ Clipboard API not supported or no content.');
     }
   };
 
   const styles = {
     centerContainer: {
-      minHeight: '100vh',
+      minHeight: 'calc(100vh - 80px)',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'center',
@@ -301,9 +262,9 @@ function GitHubRepoInput() {
       padding: '20px',
       marginTop: '24px',
       textAlign: 'left',
-      maxHeight: '200px',
+      maxHeight: '300px',
       overflowY: 'auto',
-      whiteSpace: 'pre-wrap',
+      whiteSpace: 'pre-wrap', 
       fontFamily: 'monospace',
       fontSize: '0.875rem',
       color: '#334155',
@@ -313,18 +274,20 @@ function GitHubRepoInput() {
 
   return (
     <>
+      {/* Aurora background elements (these are handled by global CSS injected in App.js) */}
       <div className="aurora-bg">
         <div className="aurora-layer"></div>
         <div className="aurora-layer-2"></div>
       </div>
 
+      {/* Main content container */}
       <main style={styles.centerContainer}>
         <section style={styles.glassCard}>
           <h1 style={styles.title}>README Miner</h1>
           <p style={styles.subtitle}>Crafting the perfect READMEs, effortlessly.</p>
 
-          <form 
-            onSubmit={handleSubmit} 
+          <form
+            onSubmit={handleSubmit}
             style={{
               display: 'flex',
               gap: '12px',
@@ -338,30 +301,40 @@ function GitHubRepoInput() {
               onChange={handleUrlChange}
               placeholder="Paste a public GitHub repository URL"
               style={styles.input}
-              disabled={isLoading}
+              disabled={isLoading || !isAuthenticated} // Disable if loading or not authenticated
               autoFocus
             />
             <button
               type="submit"
               style={{
                 ...styles.button,
-                ...(isLoading ? styles.buttonLoading : {})
+                // Apply loading or disabled style if loading or not authenticated
+                ...(isLoading || !isAuthenticated ? styles.buttonLoading : {})
               }}
-              disabled={isLoading}
+              disabled={isLoading || !isAuthenticated} // Disable if loading or not authenticated
             >
               {isLoading ? 'Mining…' : 'Generate'}
             </button>
           </form>
 
+          {/* Display general status messages */}
           {message && (
             <p style={{
               ...styles.message,
+              // Apply error specific styling if message starts with '❌'
               ...(message.startsWith('❌') ? styles.errorMessage : {})
             }}>
               {message}
             </p>
           )}
+          {/* Display specific error messages */}
+          {error && (
+            <p style={{ ...styles.message, ...styles.errorMessage }}>
+              {error}
+            </p>
+          )}
 
+          {/* Conditional rendering for generated README preview and actions */}
           {isReady && generatedReadme && (
             <>
               <div ref={readmePreviewRef} style={styles.readmePreview}>
