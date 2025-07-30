@@ -17,13 +17,8 @@ load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 def clone_repo(repo_url: str, clone_to: str) -> str:
-    try:
-        git.Repo.clone_from(repo_url, clone_to)
-        return clone_to
-    except Exception as e:
-        print(f"Failed to clone repo: {e}")
-        exit(1)
-
+    git.Repo.clone_from(repo_url, clone_to)
+    return clone_to
 
 def get_all_files(repo_path: str) -> List[str]:
     files = []
