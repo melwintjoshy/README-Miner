@@ -23,7 +23,7 @@ function GitHubRepoInput() {
   const backendBaseUrl =
     window.location.hostname === 'localhost'
       ? 'http://localhost:8000'
-      : 'https://your-deployed-backend.com'; // <-- Change for production
+      : 'https://readme-miner.onrender.com'; // <-- Change for production
 
   const handleUrlChange = (event) => {
     setRepoUrl(event.target.value);
