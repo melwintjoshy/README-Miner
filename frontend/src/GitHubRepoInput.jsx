@@ -119,13 +119,21 @@ function GitHubRepoInput() {
     }
   };
 
-  const handleLoginSuccess = (credentialResponse) => {
-    const token = credentialResponse.credential;
-    // const user = jwt_decode(token); // if needed
-    localStorage.setItem('access_token', token);
-    setToken(token);
-    setIsAuthenticated(true);
-  };
+  const handleLoginSuccess = async (credentialResponse) => {
+  const token = credentialResponse.credential;
+  localStorage.setItem('access_token', token);
+  setToken(token);
+  setIsAuthenticated(true);
+
+  // Save user in backend
+  try {
+    await apiCall('/store_user', 'POST', { token });
+    console.log('✅ User stored successfully in backend');
+  } catch (err) {
+    console.error('❌ Failed to store user:', err.message);
+  }
+};
+
 
   const handleLogout = () => {
     googleLogout();
