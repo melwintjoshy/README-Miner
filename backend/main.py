@@ -5,8 +5,8 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 import sys
 from google.oauth2 import id_token
-from backend.db import SessionLocal, init_db
-from backend.models import User
+from db import SessionLocal, init_db
+from models import User
 from sqlalchemy.orm import Session
 from google.auth.transport import requests as grequests
 import os
@@ -24,7 +24,7 @@ app = FastAPI()
 # Allow React frontend to call backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["https://readme-miner.vercel.app/"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
