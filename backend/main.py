@@ -1,10 +1,19 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request,Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.responses import FileResponse
 from pathlib import Path
 import sys
+from google.oauth2 import id_token
+from backend.db import SessionLocal, init_db
+from backend.models import User
+from sqlalchemy.orm import Session
+from google.auth.transport import requests as grequests
 import os
+
+init_db()  # creates tables on app startup
+
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.utils.main_utils import * 
@@ -69,3 +78,45 @@ def download_readme():
         media_type='text/markdown',
         filename='README.md',
     )
+    
+GOOGLE_CLIENT_ID = "123890995190-pm9va1aupc6hotk1veu0cbr723kqck8o.apps.googleusercontent.com"
+
+class UserIn(BaseModel):
+    token: str
+
+# Dependency to get DB session
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+class UserIn(BaseModel):
+    token: str
+
+@app.post("/store_user")
+async def store_user(user_in: UserIn, db: Session = Depends(get_db)):
+    try:
+        # Verify token
+        idinfo = id_token.verify_oauth2_token(user_in.token, grequests.Request(), GOOGLE_CLIENT_ID)
+
+        user_id = idinfo["sub"]
+        email = idinfo["email"]
+        name = idinfo.get("name", "")
+
+        # Check if user exists
+        user = db.query(User).filter_by(id=user_id).first()
+        if not user:
+            user = User(id=user_id, email=email, name=name)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            print(f"✅ New user created: {email}")
+        else:
+            print(f"ℹ️ User already exists: {email}")
+
+        return {"message": "User verified & stored", "email": email}
+
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID token")
