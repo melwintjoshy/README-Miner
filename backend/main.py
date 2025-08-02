@@ -15,7 +15,7 @@ init_db()  # creates tables on app startup
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.utils.main_utils import * 
+from main_utils import * 
 
 app = FastAPI()
 
