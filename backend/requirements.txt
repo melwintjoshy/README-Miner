@@ -16,7 +16,7 @@ pydantic
 sqlalchemy
 google-auth-oauthlib
 google-auth-httplib2
-google-auth-library
+google-auth
 httpx
 requests
 
