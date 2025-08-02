@@ -36,6 +36,11 @@ class RepoRequest(BaseModel):
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # one level above backend/
 
+@app.get("/")
+def root():
+    """Root endpoint for health checks."""
+    return {"message": "FastAPI backend for Readme Miner is running!"}
+
 @app.post("/get_readme")
 async def get_readme(request: RepoRequest):
     repo_url = f"{request.repo_url}.git"
