@@ -7,7 +7,7 @@ export const apiCall = async (endpoint, method = 'GET', body = null, token = nul
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`https://readme-miner.onrender.com/${endpoint}`, {
+  const response = await fetch(`https://readme-miner.onrender.com${endpoint}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : null,
