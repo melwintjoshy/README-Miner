@@ -5,8 +5,8 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 import sys
 from google.oauth2 import id_token
-from .db import SessionLocal, init_db
-from .models import User
+from db import SessionLocal, init_db
+from models import User
 from sqlalchemy.orm import Session
 from google.auth.transport import requests as grequests
 import os
