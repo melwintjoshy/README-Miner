@@ -5,8 +5,8 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 import sys
 from google.oauth2 import id_token
-from db import SessionLocal, init_db
-from models import User
+from backend.db import SessionLocal, init_db
+from backend.models import User
 from sqlalchemy.orm import Session
 from google.auth.transport import requests as grequests
 import os
@@ -15,7 +15,7 @@ init_db()  # creates tables on app startup
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from main_utils import * 
+from backend.main_utils import * 
 
 app = FastAPI()
 
