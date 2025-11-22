@@ -59,12 +59,19 @@ npm start
 - Optional: Migrate background tasks to Celery + Redis for scalability
 
 ## Deployment Options
-Backend: Render, Railway, Fly.io, AWS ECS/Fargate, Azure Container Apps.
+Backend (current): Render at `https://readme-miner-backend.onrender.com`.
+Alternative Backends: Railway, Fly.io, AWS ECS/Fargate, Azure Container Apps.
 Frontend: Vercel or Netlify.
 
 Example backend start command (Render/Railway):
 ```bash
-uvicorn backend.main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+Frontend env vars (Vercel):
+```
+REACT_APP_API_URL=https://readme-miner-backend.onrender.com
+REACT_APP_GOOGLE_CLIENT_ID=<google_oauth_client_id>
 ```
 
 ## Repo URL Validation

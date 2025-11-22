@@ -24,7 +24,7 @@ function GitHubRepoInput() {
     if (envBase) return envBase.replace(/\/$/, '');
     return window.location.hostname === 'localhost'
       ? 'http://localhost:8000'
-      : 'https://readme-miner.onrender.com';
+      : 'https://readme-miner-backend.onrender.com';
   };
 
   const handleUrlChange = (event) => {

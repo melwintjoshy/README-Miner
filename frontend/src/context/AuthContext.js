@@ -5,7 +5,7 @@ const getApiBase = () => {
   if (envBase) return envBase.replace(/\/$/, '');
   return window.location.hostname === 'localhost'
     ? 'http://localhost:8000'
-    : 'https://readme-miner.onrender.com';
+    : 'https://readme-miner-backend.onrender.com';
 };
 
 export const AuthContext = createContext(null);
