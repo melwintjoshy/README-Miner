@@ -118,7 +118,7 @@ def generate_readme(project_details: str) -> str:
         template=template
     )
 
-    llm_chain = prompt | llm
+    llm_chain = prompt | llm 
 
     file = llm_chain.invoke({
         "project_details": project_details,

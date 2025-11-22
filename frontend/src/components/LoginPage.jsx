@@ -1,4 +1,4 @@
-import React, { useEffect, useContext } from 'react';
+import React, { useEffect, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
@@ -13,11 +13,24 @@ const LoginPage = () => {
   // Debug log 2: See what 'login' is after destructuring
   console.log('LoginPage: Extracted login function:', login);
 
+  const handleCredentialResponse = useCallback(async (response) => {
+    // Debug log 3: See the response from Google
+    console.log('LoginPage: Google Credential Response:', response);
+    // Debug log 4: Confirm 'login' is still a function here
+    console.log('LoginPage: Type of login in handleCredentialResponse:', typeof login);
+
+    if (login) {
+      const ok = await login(response.credential); // exchange for JWT
+      if (ok) navigate('/');
+    } else {
+      console.error('❌ LoginPage: login is undefined. Make sure AuthProvider wraps App and provides "login".');
+    }
+  }, [login, navigate]);
+
   useEffect(() => {
-    /* global google */
     if (window.google && window.google.accounts && window.google.accounts.id) {
       window.google.accounts.id.initialize({
-        client_id: '123890995190-pm9va1aupc6hotk1veu0cbr723kqck8o.apps.googleusercontent.com',
+        client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID || 'REPLACE_GOOGLE_CLIENT_ID',
         callback: handleCredentialResponse,
       });
 
@@ -33,21 +46,7 @@ const LoginPage = () => {
     } else {
       console.error('Google GSI script not loaded or initialized correctly.');
     }
-  }, [login]); // Add login to dependency array to re-run if it changes
-
-  const handleCredentialResponse = (response) => {
-    // Debug log 3: See the response from Google
-    console.log('LoginPage: Google Credential Response:', response);
-    // Debug log 4: Confirm 'login' is still a function here
-    console.log('LoginPage: Type of login in handleCredentialResponse:', typeof login);
-
-    if (login) {
-      login(response.credential); // Calls context login (which internally calls setToken)
-      navigate('/');
-    } else {
-      console.error('❌ LoginPage: login is undefined. Make sure AuthProvider wraps App and provides "login".');
-    }
-  };
+  }, [handleCredentialResponse]);
 
   return (
     <div style={{ padding: '100px', textAlign: 'center' }}>

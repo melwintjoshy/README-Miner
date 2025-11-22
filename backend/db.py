@@ -1,22 +1,24 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from backend.models import Base
-import os
-from dotenv import load_dotenv
+from backend.config import get_settings
 
-load_dotenv()
+settings = get_settings()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+if not settings.DATABASE_URL:
+    raise ValueError("DATABASE_URL is not set. Please check your environment configuration.")
 
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL is not set. Please check your .env file.")
-
-# SQLite needs a special flag
 connect_args = {}
-if DATABASE_URL.startswith("sqlite"):
+if settings.DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+engine = create_engine(
+    settings.DATABASE_URL,
+    connect_args=connect_args,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=10
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():

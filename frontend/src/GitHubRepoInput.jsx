@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useRef, useContext } from 'react';
 import { AuthContext } from './context/AuthContext';
 import { apiCall } from './services/api';
 import { GoogleLogin, googleLogout } from '@react-oauth/google';
-import jwt_decode from 'jwt-decode';
 
 function GitHubRepoInput() {
   const [repoUrl, setRepoUrl] = useState('');
@@ -20,10 +19,13 @@ function GitHubRepoInput() {
     setIsAuthenticated
   } = useContext(AuthContext);
 
-  const backendBaseUrl =
-    window.location.hostname === 'localhost'
+  const getBase = () => {
+    const envBase = process.env.REACT_APP_API_URL;
+    if (envBase) return envBase.replace(/\/$/, '');
+    return window.location.hostname === 'localhost'
       ? 'http://localhost:8000'
-      : 'https://readme-miner.onrender.com'; // <-- Change for production
+      : 'https://readme-miner.onrender.com';
+  };
 
   const handleUrlChange = (event) => {
     setRepoUrl(event.target.value);
@@ -53,25 +55,48 @@ function GitHubRepoInput() {
     setIsReady(false);
 
     try {
-      await apiCall('/get_readme', 'POST', { repo_url: repoUrl }, token);
-      setMessage('README generation initiated successfully! Fetching content...');
+      const start = await apiCall('/get_readme', 'POST', { repo_url: repoUrl }, token);
+      setMessage('README generation started. This may take a minute...');
+      const jobId = start.job_id;
 
-      const readmeResponse = await fetch(`${backendBaseUrl}/download_readme`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Poll job status and fetch README when ready
+      const poll = async () => {
+        const res = await fetch(`${getBase()}/readme/${jobId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.status === 404) throw new Error('Job not found');
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('text/markdown')) {
+          const md = await res.text();
+          setGeneratedReadme(md);
+          setMessage('✅ README generated successfully!');
+          setIsReady(true);
+          readmePreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return true;
+        } else {
+          const data = await res.json();
+          if (data.status === 'completed') {
+            // safety, but normally completed returns file
+            const md = await res.text();
+            setGeneratedReadme(md);
+            setIsReady(true);
+            return true;
+          }
+          if (data.status === 'failed') {
+            throw new Error(data.error || 'Job failed');
+          }
+          return false;
+        }
+      };
 
-      if (readmeResponse.ok) {
-        const readmeText = await readmeResponse.text();
-        setGeneratedReadme(readmeText);
-        setMessage('✅ README generated successfully!');
-        setIsReady(true);
-        readmePreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else {
-        const errorData = await readmeResponse.json();
-        setError(`❌ Failed to download README: ${errorData.detail || 'Unknown error'}`);
+      let done = false;
+      for (let i = 0; i < 60 && !done; i++) { // up to ~2 minutes
+        done = await poll();
+        if (!done) {
+          await new Promise(r => setTimeout(r, 2000));
+        }
       }
+      if (!done) throw new Error('Timed out waiting for README');
     } catch (apiError) {
       console.error('API Error:', apiError);
       setError(`❌ An error occurred: ${apiError.message}`);
@@ -120,19 +145,24 @@ function GitHubRepoInput() {
   };
 
   const handleLoginSuccess = async (credentialResponse) => {
-  const token = credentialResponse.credential;
-  localStorage.setItem('access_token', token);
-  setToken(token);
-  setIsAuthenticated(true);
-
-  // Save user in backend
-  try {
-    await apiCall('/store_user', 'POST', { token });
-    console.log('✅ User stored successfully in backend');
-  } catch (err) {
-    console.error('❌ Failed to store user:', err.message);
-  }
-};
+    const googleCred = credentialResponse.credential;
+    // Delegate to AuthContext.login which exchanges for JWT
+    try {
+      const res = await fetch(`${getBase()}/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: googleCred })
+      });
+      if (!res.ok) throw new Error('Auth failed');
+      const data = await res.json();
+      const accessToken = data.access_token;
+      localStorage.setItem('access_token', accessToken);
+      setToken(accessToken);
+      setIsAuthenticated(true);
+    } catch (e) {
+      console.error('❌ Auth failed:', e);
+    }
+  };
 
 
   const handleLogout = () => {
